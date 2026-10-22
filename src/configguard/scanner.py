@@ -24,7 +24,10 @@ SECRET_PATTERNS = [
     (
         "POTENTIAL_API_KEY",
         re.compile(
-            r"""(?i)\b(?:api[_-]?key|secret[_-]?key|access[_-]?token)"""
+            r"""(?i)\b(?:[A-Z0-9]+[_-])?"""
+            r"""(?:api[_-]?key|secret|secret[_-]?key|"""
+            r"""access[_-]?token|auth[_-]?token|"""
+            r"""client[_-]?secret|jwt[_-]?secret)"""
             r"""\s*[:=]\s*["']?([A-Za-z0-9_\-./+=${}]{1,})"""
         ),
     ),

@@ -66,6 +66,31 @@ class ScannerTests(unittest.TestCase):
             )
             self.assertEqual(result["findings"][0]["line"], 1)
 
+    def test_detects_common_secret_variable_names(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "secrets.env"
+            path.write_text(
+                "STRIPE_SECRET=sk_live_FAKE123456789\n"
+                "JWT_SECRET=my-fake-secret-value\n"
+                "CLIENT_SECRET=fake-client-secret\n"
+                "AUTH_TOKEN=fake-auth-token\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(len(result["findings"]), 4)
+            self.assertEqual(result["errors"], [])
+            self.assertTrue(
+                all(
+                    finding["rule_id"] == "POTENTIAL_API_KEY"
+                    for finding in result["findings"]
+                )
+            )
+            self.assertEqual(
+                [finding["line"] for finding in result["findings"]],
+                [1, 2, 3, 4],
+            )
 
     def test_safe_fixture_has_no_findings(self):
         result = scan_directory(SAFE)
