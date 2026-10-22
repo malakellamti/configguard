@@ -1,4 +1,6 @@
-
+import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,7 +10,7 @@ from configguard.scanner import scan_directory, scan_file
 ROOT = Path(__file__).resolve().parent
 VULNERABLE = ROOT / "fixtures" / "vulnerable"
 SAFE = ROOT / "fixtures" / "safe"
-
+PROJECT_ROOT = ROOT.parent
 
 class ScannerTests(unittest.TestCase):
     def test_detects_three_vulnerable_values(self):
@@ -73,6 +75,48 @@ class ScannerTests(unittest.TestCase):
 
         self.assertEqual(result["findings"], [])
         self.assertEqual(len(result["errors"]), 1)
+
+
+class CLITests(unittest.TestCase):
+    def run_cli(self, path: Path) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "configguard.cli",
+                str(path),
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=PROJECT_ROOT,
+        )
+
+    def test_json_reports_vulnerable_fixture(self):
+        result = self.run_cli(VULNERABLE)
+        data = json.loads(result.stdout)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(len(data["findings"]), 3)
+        self.assertEqual(data["errors"], [])
+
+    def test_json_reports_safe_fixture(self):
+        result = self.run_cli(SAFE)
+        data = json.loads(result.stdout)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(data["findings"], [])
+        self.assertEqual(data["errors"], [])
+
+    def test_json_reports_missing_path(self):
+        missing_path = PROJECT_ROOT / "does-not-exist.env"
+        result = self.run_cli(missing_path)
+        data = json.loads(result.stdout)
+
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(data["findings"], [])
+        self.assertEqual(len(data["errors"]), 1)
+
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@
 """Command-line interface for ConfigGuard."""
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -14,12 +15,25 @@ def main() -> int:
         description="Scan files for potential hardcoded secrets.",
     )
     parser.add_argument("path", type=Path, help="File or directory to scan")
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results as JSON",
+    )
     args = parser.parse_args()
 
     target = args.path.expanduser()
 
     if not target.exists():
-        print(f"Error: path does not exist: {target}", file=sys.stderr)
+        error = f"Path does not exist: {target}"
+        if args.json:
+            print(json.dumps({
+                "target": str(target),
+                "findings": [],
+                "errors": [error],
+            }, indent=2))
+        else:
+            print(f"Error: {error}", file=sys.stderr)
         return 2
 
     if target.is_file():
@@ -27,38 +41,55 @@ def main() -> int:
     elif target.is_dir():
         result = scan_directory(target)
     else:
-        print(
-            f"Error: not a regular file or directory: {target}",
-            file=sys.stderr,
-        )
+        error = f"Not a regular file or directory: {target}"
+        if args.json:
+            print(json.dumps({
+                "target": str(target),
+                "findings": [],
+                "errors": [error],
+            }, indent=2))
+        else:
+            print(f"Error: {error}", file=sys.stderr)
         return 2
 
     findings = result["findings"]
     errors = result["errors"]
 
-    print(f"ConfigGuard scan: {target}")
-    print(f"Findings: {len(findings)}")
-    print(f"Scan errors: {len(errors)}")
+    if args.json:
+        print(json.dumps({
+            "target": str(target),
+            "findings": findings,
+            "errors": errors,
+        }, indent=2))
+    else:
+        print(f"ConfigGuard scan: {target}")
+        print(f"Findings: {len(findings)}")
+        print(f"Scan errors: {len(errors)}")
 
-    for finding in findings:
-        print(
-            f"[{finding['rule_id']}] "
-            f"{finding['file']}:{finding['line']} - "
-            f"{finding['message']}"
-        )
+        for finding in findings:
+            print(
+                f"[{finding['rule_id']}] "
+                f"{finding['file']}:{finding['line']} - "
+                f"{finding['message']}"
+            )
 
-    for error in errors:
-        print(f"ERROR: {error}", file=sys.stderr)
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+
+        if errors:
+            print("Scan incomplete; do not treat this result as clean.")
+        elif findings:
+            print(
+                "\nReview these matches manually; "
+                "they may be false positives."
+            )
+        else:
+            print("No potential hardcoded secrets detected.")
 
     if errors:
-        print("Scan incomplete; do not treat this result as clean.")
         return 2
-
     if findings:
-        print("\nReview these matches manually; they may be false positives.")
         return 1
-
-    print("No potential hardcoded secrets detected.")
     return 0
 
 
