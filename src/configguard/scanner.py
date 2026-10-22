@@ -1,7 +1,9 @@
 
 """Detect potential hardcoded secrets in text files."""
 
+import os
 import re
+import stat
 from pathlib import Path
 from typing import TypedDict
 
@@ -45,11 +47,17 @@ ENVIRONMENT_REFERENCE = re.compile(
 
 
 def scan_file(path: Path) -> ScanResult:
-    """Scan one file and return findings and any read errors."""
+    """Scan one regular file and return findings and read errors."""
     findings: list[Finding] = []
-    errors: list[str] = []
 
     try:
+        # Do not follow symlinks or attempt to read special files.
+        if path.is_symlink() or not stat.S_ISREG(path.stat().st_mode):
+            return {
+                "findings": [],
+                "errors": [f"{path}: not a regular file"],
+            }
+
         content = path.read_text(encoding="utf-8")
     except (OSError, UnicodeError) as exc:
         return {
@@ -82,22 +90,62 @@ def scan_file(path: Path) -> ScanResult:
                 }
             )
 
-    return {"findings": findings, "errors": errors}
+    return {"findings": findings, "errors": []}
+
+
+def _record_walk_error(exc: OSError, errors: list[str]) -> None:
+    """Record directory traversal errors instead of silently ignoring them."""
+    errors.append(f"{exc.filename or '<directory>'}: could not scan ({exc})")
 
 
 def scan_directory(root: Path) -> ScanResult:
-    """Scan files recursively without executing them."""
+    """Scan regular files recursively and report traversal errors."""
     findings: list[Finding] = []
     errors: list[str] = []
 
-    try:
-        paths = sorted(root.rglob("*"))
-        for path in paths:
-            if path.is_file():
-                result = scan_file(path)
-                findings.extend(result["findings"])
-                errors.extend(result["errors"])
-    except OSError as exc:
-        errors.append(f"{root}: could not scan directory ({exc})")
+    if root.is_symlink():
+        return {
+            "findings": [],
+            "errors": [f"{root}: refusing to scan a symbolic link"],
+        }
+
+    if not root.is_dir():
+        return {
+            "findings": [],
+            "errors": [f"{root}: not a directory"],
+        }
+
+    for current_root, directories, filenames in os.walk(
+        root,
+        topdown=True,
+        followlinks=False,
+        onerror=lambda exc: _record_walk_error(exc, errors),
+    ):
+        current_path = Path(current_root)
+
+        # Do not traverse symbolic-link directories.
+        directories[:] = sorted(
+            name
+            for name in directories
+            if not (current_path / name).is_symlink()
+        )
+
+        for filename in sorted(filenames):
+            path = current_path / filename
+
+            # Avoid symbolic links and special files.
+            if path.is_symlink():
+                continue
+
+            try:
+                if not stat.S_ISREG(path.stat().st_mode):
+                    continue
+            except OSError as exc:
+                errors.append(f"{path}: could not inspect file ({exc})")
+                continue
+
+            result = scan_file(path)
+            findings.extend(result["findings"])
+            errors.extend(result["errors"])
 
     return {"findings": findings, "errors": errors}

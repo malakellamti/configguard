@@ -116,8 +116,49 @@ class CLITests(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertEqual(data["findings"], [])
         self.assertEqual(len(data["errors"]), 1)
+    def test_symbolic_link_is_not_scanned(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "target.env"
+            link = root / "link.env"
 
+            target.write_text(
+                "API_KEY=sk-test-FAKE123456789012345678\n",
+                encoding="utf-8",
+            )
 
+            try:
+                link.symlink_to(target)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"Symbolic links unavailable: {exc}")
+
+            result = scan_file(link)
+
+            self.assertEqual(result["findings"], [])
+            self.assertEqual(len(result["errors"]), 1)
+
+    def test_directory_scan_skips_symbolic_links(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "scan"
+            root.mkdir()
+
+            outside = Path(directory) / "outside.env"
+            link = root / "link.env"
+
+            outside.write_text(
+                "API_KEY=sk-test-FAKE123456789012345678\n",
+                encoding="utf-8",
+            )
+
+            try:
+                link.symlink_to(outside)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"Symbolic links unavailable: {exc}")
+
+            result = scan_directory(root)
+
+            self.assertEqual(result["findings"], [])
+            self.assertEqual(result["errors"], [])
 
 if __name__ == "__main__":
     unittest.main()
