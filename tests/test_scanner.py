@@ -113,6 +113,46 @@ class ScannerTests(unittest.TestCase):
         self.assertEqual(result["findings"], [])
         self.assertEqual(len(result["errors"]), 1)
 
+    def test_github_environment_variable_reference_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "reference.env"
+            path.write_text(
+                "GITHUB_TOKEN=${GITHUB_TOKEN}\n"
+                "GITHUB_TOKEN=$GITHUB_TOKEN\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(result["findings"], [])
+            self.assertEqual(result["errors"], [])
+
+    def test_github_token_in_comment_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "comments.env"
+            path.write_text(
+                "# GITHUB_TOKEN=ghp_FAKE123456789012345678901234567890\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(result["findings"], [])
+            self.assertEqual(result["errors"], [])
+
+    def test_short_github_like_string_is_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "short.env"
+            path.write_text(
+                "GITHUB_TOKEN=ghp_not-a-real-token\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(result["findings"], [])
+            self.assertEqual(result["errors"], [])
+
 
 class CLITests(unittest.TestCase):
     def run_cli(self, path: Path) -> subprocess.CompletedProcess:
