@@ -27,7 +27,7 @@ It is designed as a small security-auditing project to explore secret detection,
 Clone the repository and enter its directory:
 
 ```bash
-git clone <your-repository-url>
+git clone https://github.com/malakellamti/configguard.git
 cd configguard
 ```
 
@@ -44,7 +44,6 @@ Install the project in editable mode:
 python -m pip install -e .
 ```
 
-Replace `<your-repository-url>` with the actual URL of your GitHub repository.
 
 ## Usage
 
