@@ -92,6 +92,24 @@ class ScannerTests(unittest.TestCase):
                 [1, 2, 3, 4],
             )
 
+    def test_detects_quoted_secret_values(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "quoted.env"
+            path.write_text(
+                'API_KEY="fake-example-key-123"\n'
+                "CLIENT_SECRET='fake-client-secret-456'\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(len(result["findings"]), 2)
+            self.assertEqual(result["errors"], [])
+            self.assertEqual(
+                [finding["line"] for finding in result["findings"]],
+                [1, 2],
+            )
+
     def test_safe_fixture_has_no_findings(self):
         result = scan_directory(SAFE)
 
