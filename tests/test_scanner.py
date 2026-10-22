@@ -30,6 +30,43 @@ class ScannerTests(unittest.TestCase):
             },
         )
 
+    def test_detects_private_key_header(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "private-key.pem"
+            path.write_text(
+                "-----BEGIN RSA PRIVATE KEY-----\n"
+                "FAKE-KEY-DATA\n"
+                "-----END RSA PRIVATE KEY-----\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(len(result["findings"]), 1)
+            self.assertEqual(
+                result["findings"][0]["rule_id"],
+                "POTENTIAL_PRIVATE_KEY",
+            )
+            self.assertEqual(result["findings"][0]["line"], 1)
+
+    def test_detects_github_style_token(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "settings.env"
+            path.write_text(
+                "GITHUB_TOKEN=ghp_FAKE123456789012345678901234567890\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(len(result["findings"]), 1)
+            self.assertEqual(
+                result["findings"][0]["rule_id"],
+                "POTENTIAL_GITHUB_TOKEN",
+            )
+            self.assertEqual(result["findings"][0]["line"], 1)
+
+
     def test_safe_fixture_has_no_findings(self):
         result = scan_directory(SAFE)
 

@@ -39,6 +39,16 @@ SECRET_PATTERNS = [
             r"""[^@\s/]+@"""
         ),
     ),
+    (
+        "POTENTIAL_PRIVATE_KEY",
+        re.compile(
+            r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"
+        ),
+    ),
+    (
+        "POTENTIAL_GITHUB_TOKEN",
+        re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,255}\b"),
+    ),
 ]
 
 ENVIRONMENT_REFERENCE = re.compile(
