@@ -118,6 +118,24 @@ class ScannerTests(unittest.TestCase):
             self.assertEqual(result["findings"], [])
             self.assertEqual(result["errors"], [])
 
+    def test_common_safe_configuration_values_are_ignored(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "safe-settings.env"
+            path.write_text(
+                "APP_ENV=production\n"
+                "DEBUG=false\n"
+                "LOG_LEVEL=INFO\n"
+                "PORT=8080\n"
+                "API_KEY=${API_KEY}\n"
+                "DATABASE_URL=${DATABASE_URL}\n",
+                encoding="utf-8",
+            )
+
+            result = scan_file(path)
+
+            self.assertEqual(result["findings"], [])
+            self.assertEqual(result["errors"], [])
+
     def test_environment_variable_reference_is_ignored(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "reference.env"
