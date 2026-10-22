@@ -1,3 +1,5 @@
+[![Tests](https://github.com/malakellamti/configguard/actions/workflows/tests.yml/badge.svg)](https://github.com/malakellamti/configguard/actions/workflows/tests.yml)
+
 # ConfigGuard
 
 ConfigGuard is a lightweight, command-line security tool written in Python that scans configuration files and directories for potential hardcoded secrets.
